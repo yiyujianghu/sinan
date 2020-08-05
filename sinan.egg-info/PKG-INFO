@@ -1,0 +1,19 @@
+Metadata-Version: 1.1
+Name: sinan
+Version: 0.1.2
+Summary: A datetime/numberic parser for chinese text
+Home-page: https://github.com/yiyujianghu
+Author: yiyujianghu
+Author-email: dongjunyou@126.com
+License: MIT
+Description: long description
+Keywords: NLP,NER
+Platform: any
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Topic :: Software Development :: Libraries

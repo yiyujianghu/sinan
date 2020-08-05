@@ -1,0 +1,11 @@
+README.md
+setup.py
+sinan/__init__.py
+sinan/date_num_parser.py
+sinan/number_extract.py
+sinan/rules_of_number.py
+sinan.egg-info/PKG-INFO
+sinan.egg-info/SOURCES.txt
+sinan.egg-info/dependency_links.txt
+sinan.egg-info/top_level.txt
+sinan.egg-info/zip-safe
