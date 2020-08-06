@@ -50,6 +50,7 @@ class Rules_of_Number():
             "money": {"元":1, "块":1, "元钱":1, "块钱":1, "角":0.1, "分":0.01, "分钱":0.01, "万元":10000, "std":"元"},
             "people": {"人":1, "位":1, "std":"人"},
         }
+    plus_minus_dict = {"正":1, "负":-1, "零上":1, "零下":-1}  # 可加入正负号判断，此处待完成
 
     measure_str = Rule_Method.dt_cal_str(measure_convert_dict)
     measure_all_str = Rule_Method.unit_merge(measure_str)

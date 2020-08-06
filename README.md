@@ -53,3 +53,5 @@ result = si.parse()
 * `si.parse(display_status=True)`
 其中display_status为时候显示解析过程，默认为True时显示，如果设置为False则不显示解析过程；
 
+#### 【附录】
+* [pip安装包制作说明](https://blog.csdn.net/fengmm521/article/details/79144407)

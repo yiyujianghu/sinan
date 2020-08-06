@@ -346,7 +346,7 @@ if __name__ == "__main__":
     # 可加入的解析项：正则解析其他项（简单城市名）、可加入断句分析并做消歧/指代消解/概念推断等
     # parse = DateNumParser("我想订明天中午12点的餐馆，三个人，走路一千多米能到，17.5万元以内，预留手机号为18619994211，明天23摄氏度",
     #                       source_DT=datetime.datetime(2000, 8, 8, 12, 30, 30))
-    parse = DateNumParser("今天下午五点，我花了一个半小时走了五公里的路程。",)
+    parse = DateNumParser("默克尔二度召开会议",)
     result_now = parse.parse(display_status=True)
     print(result_now)
 
