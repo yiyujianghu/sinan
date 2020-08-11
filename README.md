@@ -53,5 +53,17 @@ result = si.parse()
 * `si.parse(display_status=True)`
 其中display_status为时候显示解析过程，默认为True时显示，如果设置为False则不显示解析过程；
 
+3、返回信息：
+参数名 | 含义 | 示例
+:-:   | :-:  | :-:
+datetime    | 日期时间信息    | '2020-08-05 17:00:00'
+length      | 长度信息      | '5000.0m'
+weight      | 质量信息      | '2.0kg'
+time        | 时间信息      | '5400.0s'
+temperature | 温度信息      | '20.0℃'
+money       | 钱数信息      | '300.0元'
+people      | 人数信息      | '2.0人'
+
+
 #### 【附录】
 * [pip安装包制作说明](https://blog.csdn.net/fengmm521/article/details/79144407)

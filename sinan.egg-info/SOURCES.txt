@@ -1,5 +1,14 @@
+.gitignore
 README.md
 setup.py
+test_all_function.py
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/sinan.iml
+.idea/vcs.xml
+.idea/inspectionProfiles/profiles_settings.xml
+dist/sinan-0.1.2.tar.gz
 sinan/__init__.py
 sinan/date_num_parser.py
 sinan/number_extract.py
