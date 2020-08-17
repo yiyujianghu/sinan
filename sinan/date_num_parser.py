@@ -309,18 +309,21 @@ class DateNumParser():
                     analyzed_info, display_type = None, None
                 if analyzed_info and display_type:
                     if display_type == "datetime":
-                        result_str = analyzed_info.strftime('%Y-%m-%d %H:%M:%S')
+                        result_append = analyzed_info.strftime('%Y-%m-%d %H:%M:%S')
+                        display_str = result_append
                     elif display_type in self.single_parse_dict.keys():
-                        result_str = analyzed_info
+                        result_append = analyzed_info
+                        display_str = result_append
                     else:
-                        result_str = "".join([str(analyzed_info[0]), analyzed_info[1]])
+                        result_append = analyzed_info
+                        display_str = "".join([str(analyzed_info[0]), analyzed_info[1]])
                     if display_type not in self.result:
-                        self.result[display_type] = [result_str]
+                        self.result[display_type] = [result_append]
                     else:
-                        self.result[display_type].append(result_str)
+                        self.result[display_type].append(result_append)
                 else:
-                    result_str = "(未识别)"
-                result_str_display = "\033[4;32m{}\033[0m".format(result_str)
+                    display_str = "(未识别)"
+                result_str_display = "\033[4;32m{}\033[0m".format(display_str)
                 self.res_content = re.sub(mask_info, result_str_display, self.res_content)
         if not self.result:
             self.res_content = self.content

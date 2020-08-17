@@ -18,7 +18,7 @@ import setuptools
 setup(
     name='sinan',  # 包的名字
     author='yiyujianghu',  # 作者
-    version='0.1.3',  # 版本号
+    version='0.1.4',  # 版本号
     license='MIT',
 
     description='A datetime/numberic parser for chinese text',  # 描述
