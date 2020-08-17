@@ -288,7 +288,7 @@ class DateNumParser():
                     measure_origin_data = content_measure.group(unit)
                     analyzed_data_number, analyzed_data_unit = self.measure_standard(measure_origin_data, unit=unit)
                     MASK_MEASURE_FLAG = "MASK_FINAL_{}_".format(self.numeric_tag(self.MASK_FINAL["count"]))
-                    self.MASK_FINAL[MASK_MEASURE_FLAG] = {"analyzed": (analyzed_data_number, analyzed_data_unit),
+                    self.MASK_FINAL[MASK_MEASURE_FLAG] = {"analyzed": [analyzed_data_number, analyzed_data_unit],
                                                           "original": measure_origin_data,
                                                           "type": unit}
                     res_content = re.sub(measure_origin_data, MASK_MEASURE_FLAG, res_content)
