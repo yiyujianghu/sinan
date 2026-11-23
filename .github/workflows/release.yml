@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing version tag, for example v0.2.0"
+        description: "Release tag"
         required: true
+        default: "v0.2.0"
         type: string
 
 env:
@@ -18,16 +19,33 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate the release tag
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.-]*$ ]] ||
+             ! git check-ref-format "refs/tags/$RELEASE_TAG"; then
+            echo "::error::Enter a version tag such as v0.2.0 in the release_tag field."
+            exit 1
+          fi
+          if ! git ls-remote --exit-code --refs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "refs/tags/$RELEASE_TAG"; then
+            echo "::error::Could not find the release tag in the repository. Push the tag before running Release."
+            exit 1
+          fi
+
   test:
+    needs: validate
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: refs/tags/${{ env.RELEASE_TAG }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -B -m unittest discover -v
@@ -36,10 +54,10 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: refs/tags/${{ env.RELEASE_TAG }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: python -m pip install build twine
@@ -50,7 +68,7 @@ jobs:
           python -m pip install --no-deps release-dist/*.whl
           cd "$RUNNER_TEMP"
           python -c 'import os; from importlib.metadata import version; from sinan import Sinan; assert "v" + version("sinan") == os.environ["RELEASE_TAG"]; assert Sinan("三点五公里").parse(False) == {"length": [[3500.0, "m"]]}'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: distributions
           path: release-dist/
@@ -62,7 +80,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: distributions
           path: release-dist/
@@ -81,7 +99,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: distributions
           path: release-dist/

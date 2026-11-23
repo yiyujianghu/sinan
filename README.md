@@ -61,4 +61,4 @@ python -m build --outdir release-dist
 python -m twine check --strict release-dist/*
 ```
 
-推送与安装包版本一致的 `vX.Y.Z` 标签会运行发布工作流，测试通过后构建 wheel 和 sdist，并上传到 GitHub Release。也可以在 GitHub Actions 手动运行 Release 工作流，指定已有标签，例如 `v0.2.0`。PyPI 项目需要设置 GitHub Trusted Publisher，仓库为 `yiyujianghu/sinan`，工作流文件为 `release.yml`，环境为 `pypi`。配置好后，发布任务会通过 GitHub OIDC 上传同一批构建产物。
+推送与安装包版本一致的 `vX.Y.Z` 标签会运行发布工作流，测试通过后构建 wheel 和 sdist，并上传到 GitHub Release。也可以在 GitHub Actions 的 Release 页面点击 **Run workflow**，选择 `master`，在 `release_tag` 字段填写已有标签（本次默认 `v0.2.0`）。如果上一次输入有误，请从 Release 页面新建一次运行。PyPI 项目需要设置 GitHub Trusted Publisher，仓库为 `yiyujianghu/sinan`，工作流文件为 `release.yml`，环境为 `pypi`。配置好后，发布任务会通过 GitHub OIDC 上传同一批构建产物。
