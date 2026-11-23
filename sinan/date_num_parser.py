@@ -10,6 +10,7 @@
 import time, datetime
 import re
 from sinan.number_extract import NumberExtract
+from sinan.quantity import find_quantities
 from sinan.rules_of_number import Rules_of_Number
 
 
@@ -22,6 +23,10 @@ class DateNumParser():
             "phone_num":Rules_of_Number.phone_rule,
             "identification":Rules_of_Number.identification_card_rule
         }
+        self._marker = "\ue000"
+        self._reset_masks()
+
+    def _reset_masks(self):
         # 以下四个属性是为了给数字日期等打MASK，便于循环检测到最后，然后按照标识依次拼接
         self.MASK_DT_CAL = {"count":0, "default":{"analyzed": {}, "original": "", "time_interval": -1, "week_value":-1}}
         self.MASK_DATE = {"count":0, "default":{'analyzed':[-1, -1, -1], 'original':""}}
@@ -86,8 +91,11 @@ class DateNumParser():
             else:
                 time_special_min_num = NumberExtract.detect(time_special_min)
             time_special_hour_num = NumberExtract.detect(time_special_hour)
+            match = re.search(time_special_rule_plus, char_new)
             time_special_num = ":".join([str(time_special_hour_num), str(time_special_min_num)])
-            char_new = re.sub(time_special_rule_plus, time_special_num, char_new, count=1)
+            if time_special_query.endswith("分") and re.match(r"[0-9零一二三四五六七八九十两]+秒", char_new[match.end():]):
+                time_special_num += ":"
+            char_new = char_new[:match.start()] + time_special_num + char_new[match.end():]
         return char_new
 
 
@@ -146,11 +154,12 @@ class DateNumParser():
                 else:
                     current_dt_cal_dict[dt] = "default"
             time_delta_dict, time_interval, week_value = self.datetime_offset_calculate(current_dt_cal_dict)
-            MASK_DT_CAL_FLAG = "MASK_DT_CAL_{}_".format(self.numeric_tag(self.MASK_DT_CAL["count"]))
+            MASK_DT_CAL_FLAG = (self._marker + "MASK_DT_CAL_{}_").format(self.numeric_tag(self.MASK_DT_CAL["count"]))
             origin_str = current_dt_cal.group()
             self.MASK_DT_CAL[MASK_DT_CAL_FLAG] = {"analyzed":time_delta_dict, "original":origin_str,
                                                   "time_interval":time_interval, "week_value":week_value}
-            res_query = re.sub(origin_str, MASK_DT_CAL_FLAG, res_query, count=1)
+            start, end = current_dt_cal.span()
+            res_query = res_query[:start] + MASK_DT_CAL_FLAG + res_query[end:]
         return res_query
 
 
@@ -181,10 +190,11 @@ class DateNumParser():
                             int("".join(filter(str.isdigit, current_dt.group(dt_char_list[dt_count])))))
                     else:
                         current_dt_list.append(-1)
-                MASK_DATE_FLAG = MASK_STR.format(self.numeric_tag(MASK_DICT["count"]))
+                MASK_DATE_FLAG = (self._marker + MASK_STR).format(self.numeric_tag(MASK_DICT["count"]))
                 origin_str = current_dt.group()
                 MASK_DICT[MASK_DATE_FLAG] = {"analyzed": current_dt_list, "original": origin_str}
-                res_content_dt = re.sub(origin_str, MASK_DATE_FLAG, res_content_dt, count=1)
+                start, end = current_dt.span()
+                res_content_dt = res_content_dt[:start] + MASK_DATE_FLAG + res_content_dt[end:]
         return res_content_dt
 
 
@@ -193,9 +203,8 @@ class DateNumParser():
         dt_char_list = ["year", "month", "day", "hour", "minute", "second"]
         source_dt_list = [self.source_DT.__getattribute__(dt) for dt in dt_char_list]   # 标准时间
         res_query = query
-        while re.search(Rules_of_Number.MASK_RULE, res_query):
-            self.MASK_FINAL["count"] += 1
-            content_mask_final = re.search(Rules_of_Number.MASK_RULE, res_query)
+        mask_rule = re.compile(Rules_of_Number.MASK_RULE.replace("MASK_", self._marker + "MASK_"))
+        while (content_mask_final := mask_rule.search(res_query)):
             content_mask_dict = {}
             for dt in dt_final_list:
                 if content_mask_final.group(dt):
@@ -226,15 +235,20 @@ class DateNumParser():
             else:
                 week_days_offset = 0
 
-            BASE_DT_FINAL = BASE_DT + \
-                            datetime.timedelta(**self.MASK_DT_CAL[content_mask_dict['cal_mask']]["analyzed"]) + \
-                            datetime.timedelta(days=week_days_offset)
-            MASK_DT_FINAL_FLAG = "MASK_FINAL_{}_".format(self.numeric_tag(self.MASK_FINAL["count"]))
-            ORIGIN_STR =self.MASK_DT_CAL[content_mask_dict['cal_mask']]["original"] + \
-                        self.MASK_DATE[content_mask_dict['date_mask']]["original"] + \
-                        self.MASK_TIME[content_mask_dict['time_mask']]["original"]
-            self.MASK_FINAL[MASK_DT_FINAL_FLAG] = {"analyzed": BASE_DT_FINAL, "original": ORIGIN_STR, "type":"datetime"}
-            res_query = re.sub(content_mask_final.group(), MASK_DT_FINAL_FLAG, res_query)
+            try:
+                BASE_DT_FINAL = BASE_DT + datetime.timedelta(
+                    **self.MASK_DT_CAL[content_mask_dict["cal_mask"]]["analyzed"]
+                ) + datetime.timedelta(days=week_days_offset)
+                mask = self._save_result("datetime", BASE_DT_FINAL.strftime("%Y-%m-%d %H:%M:%S"))
+            except OverflowError:
+                mask = content_mask_final[0]
+                for key, table in (("cal_mask", self.MASK_DT_CAL), ("date_mask", self.MASK_DATE),
+                                   ("time_mask", self.MASK_TIME)):
+                    token = content_mask_dict[key]
+                    if token != "default":
+                        mask = mask.replace(token, table[token]["original"])
+            start, end = content_mask_final.span()
+            res_query = res_query[:start] + mask + res_query[end:]
         return res_query
 
 
@@ -252,93 +266,50 @@ class DateNumParser():
         res_mask_dt = self.datetime_connect(res_content_std_date)
         return res_mask_dt
 
+    def _save_result(self, kind, *values):
+        self.MASK_FINAL["count"] += 1
+        token = f'{self._marker}{self.MASK_FINAL["count"]:x}\ue001'
+        self.MASK_FINAL[token] = kind, values
+        return token
+
     def single_parse(self, content):
-        res_content = content
         for name, rule in self.single_parse_dict.items():
-            while re.search(rule, res_content):
-                self.MASK_FINAL["count"] += 1
-                content_single = re.search(rule, res_content).group()
-                MASK_MEASURE_FLAG = "MASK_FINAL_{}_".format(self.numeric_tag(self.MASK_FINAL["count"]))
-                self.MASK_FINAL[MASK_MEASURE_FLAG] = {"analyzed": content_single,
-                                                      "original": content_single,
-                                                      "type": name}
-                res_content = re.sub(content_single, MASK_MEASURE_FLAG, res_content)
-        return res_content
-
-
-    def measure_standard(self, measure_data, unit=None):
-        if re.search(r"[0-9]+(\.[0-9]+)?", measure_data):
-            analyzed_data_number = re.search(r"[0-9]+(\.[0-9]+)?", measure_data).group()
-        else:
-            analyzed_data_number = ""
-        analyzed_data_unit = measure_data.replace(analyzed_data_number, "").replace("多", "")
-        if unit:
-            analyzed_data_number = float(analyzed_data_number)*Rules_of_Number.measure_convert_dict[unit][analyzed_data_unit]
-            analyzed_data_unit = Rules_of_Number.measure_convert_dict[unit]["std"]
-        return analyzed_data_number, analyzed_data_unit
-
+            content = re.sub(rule, lambda match: self._save_result(name, match[0]), content)
+        return content
 
     def measure_parse(self, content):
-        res_content = content
-        while re.search(Rules_of_Number.measure_rule, res_content):
-            self.MASK_FINAL["count"] += 1
-            content_measure = re.search(Rules_of_Number.measure_rule, res_content)
-            for unit in Rules_of_Number.measure_str.keys():
-                if content_measure.group(unit):
-                    measure_origin_data = content_measure.group(unit)
-                    analyzed_data_number, analyzed_data_unit = self.measure_standard(measure_origin_data, unit=unit)
-                    MASK_MEASURE_FLAG = "MASK_FINAL_{}_".format(self.numeric_tag(self.MASK_FINAL["count"]))
-                    self.MASK_FINAL[MASK_MEASURE_FLAG] = {"analyzed": [analyzed_data_number, analyzed_data_unit],
-                                                          "original": measure_origin_data,
-                                                          "type": unit}
-                    res_content = re.sub(measure_origin_data, MASK_MEASURE_FLAG, res_content)
-                    break
-                else:
-                    continue
-        return res_content
+        parts = []
+        cursor = 0
+        for match in find_quantities(content):
+            parts.append(content[cursor:match.start])
+            values = ([float(value), match.symbol] for value in match.values)
+            parts.append(self._save_result(match.kind, *values))
+            cursor = match.end
+        parts.append(content[cursor:])
+        return "".join(parts)
 
     def display(self, display_status=True):
-        if self.MASK_FINAL["count"] > 0:
-            while re.search(r"MASK_FINAL_I+_", self.res_content):
-                mask_info = re.search(r"MASK_FINAL_I+_", self.res_content).group()
-                mask_content = self.MASK_FINAL[mask_info]
-                if isinstance(mask_content, dict):
-                    analyzed_info = mask_content.get("analyzed")
-                    display_type = mask_content.get("type")
-                else:
-                    analyzed_info, display_type = None, None
-                if analyzed_info and display_type:
-                    if display_type == "datetime":
-                        result_append = analyzed_info.strftime('%Y-%m-%d %H:%M:%S')
-                        display_str = result_append
-                    elif display_type in self.single_parse_dict.keys():
-                        result_append = analyzed_info
-                        display_str = result_append
-                    else:
-                        result_append = analyzed_info
-                        display_str = "".join([str(analyzed_info[0]), analyzed_info[1]])
-                    if display_type not in self.result:
-                        self.result[display_type] = [result_append]
-                    else:
-                        self.result[display_type].append(result_append)
-                else:
-                    display_str = "(未识别)"
-                result_str_display = "\033[4;32m{}\033[0m".format(display_str)
-                self.res_content = re.sub(mask_info, result_str_display, self.res_content)
-        if not self.result:
-            self.res_content = self.content
+        def render(match):
+            kind, values = self.MASK_FINAL[match[0]]
+            self.result.setdefault(kind, []).extend(values)
+            rendered = [value if isinstance(value, str) else f"{value[0]}{value[1]}" for value in values]
+            return "\033[4;32m{}\033[0m".format("至".join(rendered))
 
+        tokens = re.compile(re.escape(self._marker) + r"[0-9a-f]+\ue001")
+        self.res_content = tokens.sub(render, self.res_content) if self.MASK_FINAL["count"] else self.content
         if display_status:
             print("\033[1;36m原始语句：\033[0m", self.content)
             print("\033[1;36m解析语句：\033[0m", self.res_content)
 
-
     def parse(self, display_status=True):
-        origin_content = self.content
-        single_data = self.single_parse(origin_content)         # 解析手机号/身份证号等单独正则信息
-        datetime_data = self.datetime_parse(single_data)        # 解析时间与日期
-        final_content = self.measure_parse(datetime_data)       # 解析计量单位数值
-        self.res_content = final_content
+        # Keep the masks and returned result local to each call.
+        self._reset_masks()
+        self._marker = "\ue000"
+        while self._marker in self.content:
+            self._marker += "\ue000"
+        quantities = self.measure_parse(self.content)
+        identifiers = self.single_parse(quantities)
+        self.res_content = self.datetime_parse(identifiers)
         self.display(display_status)
         return self.result
 

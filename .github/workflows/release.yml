@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -B -m unittest discover -v
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - run: python -m build --outdir release-dist
+      - run: python -m twine check --strict release-dist/*
+      - name: Smoke-test the wheel outside the checkout
+        run: |
+          python -m pip install --no-deps release-dist/*.whl
+          cd "$RUNNER_TEMP"
+          python -c 'import os; from importlib.metadata import version; from sinan import Sinan; assert "v" + version("sinan") == os.environ["GITHUB_REF_NAME"]; assert Sinan("三点五公里").parse(False) == {"length": [[3500.0, "m"]]}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: release-dist/
+          if-no-files-found: error
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: release-dist/
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null; then
+            gh release create "$GITHUB_REF_NAME" release-dist/* --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          fi
+
+  pypi:
+    needs: [build, github-release]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: release-dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release-dist/

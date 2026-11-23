@@ -21,41 +21,8 @@ class Rule_Method():
         except:
             return {}
 
-    @classmethod
-    def unit_merge(cls, measure_str):
-        if isinstance(measure_str, dict):
-            return "|".join(measure_str.values())
-        else:
-            return ""
 
-    @classmethod
-    def generate_measure_rule(cls, measure_convert_dict, measure_str):
-        rule_template = "(?P<unit>([0-9]+(\.[0-9]+)?)多?({unit}))"
-        rule_list = []
-        for k in measure_convert_dict.keys():
-            unit_rule = rule_template.replace("unit", k)
-            rule_list.append(unit_rule)
-        unit_rules_str = "|".join(rule_list)
-        return unit_rules_str.format(**measure_str)
-
-
-class Rules_of_Number():
-    # 常见的计量单位及同义词转换
-    measure_convert_dict = {
-            "length": {"米":1, "m":1, "千米":1000, "公里":1000, "km":1000, "里":500,
-                        "厘米":0.01, "cm":0.01, "毫米":0.001, "mm":0.001, "std":"m"},
-            "weight": {"千克":1, "kg":1, "公斤":1, "斤":0.5, "克":0.001, "g":0.001, "std":"kg"},
-            "time": {"秒":1, "s":1, "小时":3600, "h":3600, "分钟":60, "min":60, "std":"s"},
-            "temperature": {"摄氏度":1, "度":1, "℃":1, "std":"℃"},
-            "money": {"元":1, "块":1, "元钱":1, "块钱":1, "角":0.1, "分":0.01, "分钱":0.01, "std":"元"},
-            "people": {"人":1, "位":1, "std":"人"},
-        }
-    plus_minus_dict = {"正":1, "负":-1, "零上":1, "零下":-1}  # 可加入正负号判断，此处待完成
-
-    measure_str = Rule_Method.dt_cal_str(measure_convert_dict)
-    measure_all_str = Rule_Method.unit_merge(measure_str)
-    measure_rule = Rule_Method.generate_measure_rule(measure_convert_dict, measure_str)
-
+class Rules_of_Number:
     # 特殊时间表达"如：差一刻三点"的汉字正则规则
     re_zh_num = {"1-4": "[一二三四]",
                  "1-5": "[一二三四五]",
@@ -104,33 +71,32 @@ class Rules_of_Number():
                      'month_number': r"(1[0-2])|(0?[1-9])",
                      'day_number': r"(3[0-1])|([1-2][0-9])|(0?[1-9])",
                      'hour_number': r"(20|21|22|23|([0-1]?\d))",
-                     'min_sec_number': r"[0-5]?\d",
-                     'measure_all_str':measure_all_str
+                     'min_sec_number': r"[0-5]?\d"
                      }
 
-    date_point_ymd = r"((?P<year>({year_number}))(\.)" \
+    date_point_ymd = r"(?<![\d.])((?P<year>({year_number}))(\.)" \
                      r"(?P<month>({month_number}))(\.)" \
-                     r"(?P<day>({day_number})))".format(**datetime_dict)
+                     r"(?P<day>({day_number})))(?![\d.])".format(**datetime_dict)
 
-    date_ymd_join = r"(?P<year>({year_number}))" \
+    date_ymd_join = r"(?<![\d.])(?P<year>({year_number}))" \
                     r"(?P<month>({month_number}))" \
-                    r"(?P<day>({day_number}))".format(**datetime_dict)
+                    r"(?P<day>({day_number}))(?![\d.])".format(**datetime_dict)
 
-    date_ymd = r"(?P<year>({year_number})[-/年])" \
+    date_ymd = r"(?<![\d.])(?P<year>({year_number})[-/年])" \
                r"(?P<month>({month_number})[-/月]?)" \
                r"(?P<day>({day_number})*[日号]?)".format(**datetime_dict)
 
-    date_md = r"(?P<year>)" \
-              r"(?P<month>({month_number})[-/月])" \
+    date_md = r"(?<![\d./A-Za-z-])(?P<year>)" \
+              r"(?P<month>({month_number})(?:月|[-/](?=({day_number})(?![\dA-Za-z./-]))))" \
               r"(?P<day>({day_number})*[日号]?)".format(**datetime_dict)
 
-    date_d = r"(?P<year>)" \
+    date_d = r"(?<![\d.])(?P<year>)" \
              r"(?P<month>)" \
              r"(?P<day>({day_number})[日号])".format(**datetime_dict)
 
-    time_std = r"(?P<hour>({hour_number})[:点时])" \
-               r"(?P<minute>({min_sec_number})*[:分]*)" \
-               r"(?P<second>({min_sec_number})*秒*)".format(**datetime_dict)
+    time_std = r"(?<![\d.])(?P<hour>({hour_number})[:：点點时時])" \
+               r"(?P<minute>(?:({min_sec_number})[:：分]?)?)" \
+               r"(?P<second>(?:({min_sec_number})秒?)?)(?![\d.])".format(**datetime_dict)
 
     MASK_RULE = r"((?P<cal_mask>(MASK_DT_CAL_I+_)的?)|" \
                 r"(?P<date_mask>(MASK_DATE_I+_)的?)|" \
